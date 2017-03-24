@@ -1,0 +1,12 @@
+---
+libvirtd_packages:
+  - libvirt
+  - libvirt-daemon
+  - qemu-img
+  - qemu-kvm
+  - virt-install
+  - virt-manager
+  - xorg-x11-xauth
+  - xorg-x11-fonts-Type1
+
+libvirtd_users: []

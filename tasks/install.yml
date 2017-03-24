@@ -1,0 +1,13 @@
+---
+- name: Installing libvirtd packages
+  package:
+    name: "{{ item }}"
+    state: installed
+  with_items:
+    - "{{ libvirtd_packages }}"
+
+- name: Ensure libvirtd service is running
+  service:
+    name: libvirtd
+    state: started
+    enabled: yes

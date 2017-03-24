@@ -1,0 +1,44 @@
+---
+- name:   "Get the CentOS ISO to use locally"
+  synchronize:
+    src:  "{{ libvirt_install.url }}"
+    dest: "{{ libvirt_install.iso }}"
+    partial:  yes
+    mode: pull
+  delegate_to: "{{ inventory_hostname }}"
+  register: libvirt_new_iso
+
+- name:   "Set ISO permissions"
+  file:
+    path: "{{ libvirt_install.iso }}"
+    mode: "0644"
+    owner:  qemu
+    group:  qemu
+  when:   libvirt_new_iso|changed
+
+#TODO: - name:   "Create kickstarts"
+
+#TODO: - name:   "Host kickstarts"
+
+- name:   "Create virtual machines"
+  command: >
+      /bin/virt-install
+        --name "{{ item.key }}"
+        --memory "{{ item.value.memory }}"
+        --vcpus "{{ item.value.vcpus }}"
+        --cpu host
+        --autostart
+        --location "{{ libvirt_install.iso }}"
+        --disk "{{ item.value.disk }}"
+        --network bridge=virbr0
+        --graphics none
+        -v --extra-args "net.ifnames=0 ks={{ libvirt_install.ks }} console=ttyS0"
+        {{ item.public|default(None) }}
+  args:
+    chdir:    /var/lib/libvirt
+    creates:  "/etc/libvirt/qemu/{{ item.key }}.xml"
+  with_dict: "{{ libvirt_machines }}"
+  # TODO: console configurations?
+  # TODO: public interface (don't create "" empty arg)
+
+#TODO: kill hosted quickstarts
