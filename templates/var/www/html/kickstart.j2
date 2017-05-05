@@ -1,0 +1,42 @@
+install
+cdrom
+text
+lang en_GB.UTF-8
+keyboard uk
+{% if item.value.ip %}
+network --bootproto=static --ip={{ item.value.ip }} --netmask=255.255.255.0 --gateway=192.168.122.1 --nameserver={{ libvirt_bridge.dns|join(',') }} --hostname={{ item.value.hostname }}
+{% else %}
+network --bootproto=dhcp --hostname={{ item.value.hostname }}
+{% endif %}
+{% if item.value.public %}
+network --bootproto=static --ip={{ item.value.publicip }} --netmask={{ item.value.publicnm }} --device={{ item.value.publicdev }} --hostname={{ item.value.hostname }}
+{% endif %}
+eula --agreed
+rootpw  --iscrypted {{ libvirt_rootpw }}
+firewall --service=ssh
+authconfig --enableshadow --passalgo=sha512
+selinux --enforcing
+timezone --utc Europe/London
+skipx
+
+bootloader --location=mbr --boot-drive=vda
+clearpart --all --initlabel
+part /boot --fstype ext4 --size=256
+part swap --size=256
+part pv.sys --size=10000 --grow --ondisk=vda
+
+volgroup systemVG pv.sys
+logvol / --fstype=ext4 --name=root --vgname=systemVG  --size=8192
+
+repo --name base --baseurl http://{{ libvirt_repohost }}/centos/7/os/x86_64/
+repo --name updates --baseurl http://{{ libvirt_repohost }}/centos/7/updates/x86_64/
+repo --name extras --baseurl http://{{ libvirt_repohost }}/centos/7/extras/x86_64/
+
+%packages --nobase
+@core --nodefaults
+%end
+
+%post
+
+
+%end

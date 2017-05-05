@@ -1,4 +1,6 @@
 ---
+libvirtd_create_machines: false
+
 libvirtd_packages:
   - libvirt
   - libvirt-daemon

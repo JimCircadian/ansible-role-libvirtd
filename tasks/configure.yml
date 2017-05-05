@@ -92,3 +92,22 @@
 - name: Start {{ libvirt_bridge.id }}
   command:  virsh net-start {{ libvirt_bridge.id }}
   when:   libvirt_interface_defined.stat.exists == False
+
+## Serial communications setup
+- name: Find tty group ID
+  shell: egrep '^tty' /etc/group | awk -F':' '{ print $3 }'
+  register: tty_group
+
+- assert: that="{{ tty_group.stdout|trim|int }}"
+
+- name: Alter pts for tty writable permissions, else you'll have no console
+  lineinfile:
+    dest:   /etc/fstab
+    regexp: '^devpts\s+([^\s]+)\s+devpts\s+defaults((?:\s+\d){2}\s*)$'
+    line:   'devpts{{ "\t" }}\1{{ "\t" }}devpts{{ "\t" }}defaults,gid={{ tty_group.stdout|trim }},mode=770\2'
+    backrefs: yes
+  register:   replaced_devpts
+
+- name: Remount devpts if changed
+  command:  mount -o remount /dev/pts
+  when:   replaced_devpts|changed

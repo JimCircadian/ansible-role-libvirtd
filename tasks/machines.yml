@@ -17,6 +17,13 @@
   when:   libvirt_new_iso|changed
 
 #TODO: - name:   "Create kickstarts"
+#TODO:  use machine ip / hostname in kickstart
+- name:   "Create kickstarts for all machines"
+  template:
+    src:    var/www/html/kickstart.j2
+    dest:   /var/www/html/{{ item.key }}.ks
+    mode:   0644
+  with_dict: "{{ libvirt_machines }}"
 
 #TODO: - name:   "Host kickstarts"
 
@@ -32,13 +39,12 @@
         --disk "{{ item.value.disk }}"
         --network bridge=virbr0
         --graphics none
-        -v --extra-args "net.ifnames=0 ks={{ libvirt_install.ks }} console=ttyS0"
-        {{ item.public|default(None) }}
+        -v --extra-args "net.ifnames=0 ks=http://192.168.122.1/{{ item.key }}.ks console=ttyS0"
+        {{ item.value.public|default(None) }}
   args:
     chdir:    /var/lib/libvirt
     creates:  "/etc/libvirt/qemu/{{ item.key }}.xml"
   with_dict: "{{ libvirt_machines }}"
-  # TODO: console configurations?
-  # TODO: public interface (don't create "" empty arg)
+  when: libvirtd_create_machines
 
-#TODO: kill hosted quickstarts
+# TODO: Accept EULA to finish automated install
