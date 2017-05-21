@@ -37,10 +37,10 @@
         --autostart
         --location "{{ libvirt_install.iso }}"
         --disk "{{ item.value.disk }}"
-        --network bridge=virbr0
         --graphics none
         -v --extra-args "net.ifnames=0 ks=http://192.168.122.1/{{ item.key }}.ks console=ttyS0"
         {{ item.value.public|default(None) }}
+        --network bridge=virbr0
   args:
     chdir:    /var/lib/libvirt
     creates:  "/etc/libvirt/qemu/{{ item.key }}.xml"
