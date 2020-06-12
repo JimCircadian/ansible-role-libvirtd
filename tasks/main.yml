@@ -8,7 +8,9 @@
     - configure
     - network
     - libvirtd
+  when: libvirtd_configure
 - include:  machines.yml
   tags:
     - machines
     - libvirtd
+  when: libvirtd_create_machines

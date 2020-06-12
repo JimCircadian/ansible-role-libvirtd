@@ -1,97 +1,98 @@
 ---
-- name:   "Check whether interface {{ libvirt_bridge.name }} exists"
-  shell:  if nmcli con show br0 >/dev/null 2>&1; then echo "1"; else echo "0"; fi
-  register:   libvirt_bridge_check
+- name:   "Check whether interface {{ libvirtd_bridge.name }} exists"
+  shell:  if nmcli con show {{ libvirtd_bridge.name }} >/dev/null 2>&1; then echo "1"; else echo "0"; fi
+  when:   "'name' in libvirtd_bridge"
+  register:   libvirtd_bridge_check
 
-- name:   "Add bridge {{ libvirt_bridge.name }} for primary interface"
-  command:  nmcli connection add con-name {{ libvirt_bridge.name }} type bridge
-  when:   libvirt_bridge_check.stdout == "0"
-  register:   libvirt_bridge_added
+- name:   "Add bridge {{ libvirtd_bridge.name }} for primary interface"
+  command:  nmcli connection add con-name {{ libvirtd_bridge.name }} type bridge
+  when:   libvirtd_bridge_check.stdout == "0"
+  register:   libvirtd_bridge_added
 
-- name:   "Configure {{ libvirt_bridge.name }}"
+- name:   "Configure {{ libvirtd_bridge.name }}"
   command: >
-    nmcli con mod {{ libvirt_bridge.name }}
+    nmcli con mod {{ libvirtd_bridge.name }}
     bridge.stp no connection.autoconnect yes
-    ipv4.addresses {{ libvirt_bridge.address }}
-    ipv4.gateway {{ libvirt_bridge.gateway }}
+    ipv4.addresses {{ libvirtd_bridge.address }}
+    ipv4.gateway {{ libvirtd_bridge.gateway }}
     ipv4.method manual
-    ipv4.dns {{ libvirt_bridge.dns|join(" ")|quote }}
+    ipv4.dns {{ libvirtd_bridge.dns|join(" ")|quote }}
     ipv6.method ignore
-  when:   libvirt_bridge_added|changed
-  register: libvirt_bridge_creation
+  when:   libvirtd_bridge_added.changed
+  register: libvirtd_bridge_creation
 
   # TODO: Looking at 2.4.0.0-devel this isn't implemented in formatting terms
   #nmcli:
-  #  conn_name:    "{{ libvirt_bridge.name }}"
+  #  conn_name:    "{{ libvirtd_bridge.name }}"
   #  autoconnect:  yes
-  #  ip4:  "{{ libvirt_bridge.address }}"
-  #  gw4:  "{{ libvirt_bridge.gateway }}"
+  #  ip4:  "{{ libvirtd_bridge.address }}"
+  #  gw4:  "{{ libvirtd_bridge.gateway }}"
   #  stp:  no
   #  type: bridge
   #  state:  present
 
-- name:   "Link {{ libvirt_bridge.physical }} to {{ libvirt_bridge.name }}"
+- name:   "Link {{ libvirtd_bridge.physical }} to {{ libvirtd_bridge.name }}"
   command: >
     nmcli con add
     autoconnect yes
-    con-name {{ libvirt_bridge.slave }}
-    ifname {{ libvirt_bridge.physical }}
+    con-name {{ libvirtd_bridge.slave }}
+    ifname {{ libvirtd_bridge.physical }}
     type bridge-slave
-    master {{ libvirt_bridge.name }}
-  when:   libvirt_bridge_creation|changed
-  register: libvirt_bridge_linked
+    master {{ libvirtd_bridge.name }}
+  when:   libvirtd_bridge_creation.changed
+  register: libvirtd_bridge_linked
 
   # TODO: Looking at 2.4.0.0-devel this isn't even a type yet...
   #nmcli:
-  #  name: "{{ libvirt_bridge.slave }}"
+  #  name: "{{ libvirtd_bridge.slave }}"
   #  autoconnect:  yes
-  #  ifname: "{{ libvirt_bridge.physical }}"
-  #  master: "{{ libvirt_bridge.name }}"
+  #  ifname: "{{ libvirtd_bridge.physical }}"
+  #  master: "{{ libvirtd_bridge.name }}"
   #  type:   bridge-slave
   #  state:  present
-- name:   "Ensure original {{ libvirt_bridge.replace }} interface is disabled"
+- name:   "Ensure original {{ libvirtd_bridge.replace }} interface is disabled"
   command: >
-    nmcli con mod "{{ libvirt_bridge.replace }}"
+    nmcli con mod "{{ libvirtd_bridge.replace }}"
     connection.autoconnect no
-  when:   libvirt_bridge_linked|changed
-  register: libvirt_disable_interface
+  when:   libvirtd_bridge_linked.changed
+  register: libvirtd_disable_interface
 
 - name: "Restart to update NetworkManager setup"
   shell: nohup bash -c 'sleep 2 && shutdown -r now "Reboot for networking"' &
   async: 0
   poll: 0
   ignore_errors: true
-  when: libvirt_disable_interface|changed
+  when: libvirtd_disable_interface.changed
 
 - name: wait for host
-  local_action: wait_for host={{ ansible_host | default(inventory_hostname,boolean=True) }} search_regex='OpenSSH' port=22 state='started' delay=30 timeout=300
+  local_action: wait_for host={{ ansible_host | default(inventory_hostname,boolean=True) }} search_regex='OpenSSH' port=22 state='started' sleep=30 delay=120 timeout=600
   become: no
-  when: libvirt_disable_interface|changed
+  when: libvirtd_disable_interface.changed
 
 - name: Check if libvirt interface is already defined
-  stat: path=/etc/libvirt/qemu/networks/{{ libvirt_bridge.id }}.xml
-  register: libvirt_interface_defined
+  stat: path=/etc/libvirt/qemu/networks/{{ libvirtd_bridge.name }}.xml
+  register: libvirtd_interface_defined
 
-- name: Render {{ libvirt_bridge.name }} configuration to libvirt as {{ libvirt_bridge.id }}
+- name: Render {{ libvirtd_bridge.name }} configuration to libvirt as {{ libvirtd_bridge.name }}
   template:
     src:  etc/bridge-def.xml.j2
-    dest: /tmp/{{ libvirt_bridge.id }}.xml
+    dest: /tmp/{{ libvirtd_bridge.name }}.xml
     owner:  root
     group:  root
     mode:   0600
-  when:   libvirt_interface_defined.stat.exists == False
+  when:   libvirtd_interface_defined.stat.exists == False
 
-- name: Define {{ libvirt_bridge.id }} in libvirt
-  command:  virsh net-define /tmp/{{ libvirt_bridge.id }}.xml
-  when:   libvirt_interface_defined.stat.exists == False
+- name: Define {{ libvirtd_bridge.name }} in libvirt
+  command:  virsh net-define /tmp/{{ libvirtd_bridge.name }}.xml
+  when:   libvirtd_interface_defined.stat.exists == False
 
-- name: Autostart {{ libvirt_bridge.id }} in libvirt
-  command:  virsh net-autostart {{ libvirt_bridge.id }}
-  when:   libvirt_interface_defined.stat.exists == False
+- name: Autostart {{ libvirtd_bridge.name }} in libvirt
+  command:  virsh net-autostart {{ libvirtd_bridge.name }}
+  when:   libvirtd_interface_defined.stat.exists == False
 
-- name: Start {{ libvirt_bridge.id }}
-  command:  virsh net-start {{ libvirt_bridge.id }}
-  when:   libvirt_interface_defined.stat.exists == False
+- name: Start {{ libvirtd_bridge.name }}
+  command:  virsh net-start {{ libvirtd_bridge.name }}
+  when:   libvirtd_interface_defined.stat.exists == False
 
 ## Serial communications setup
 - name: Find tty group ID
@@ -110,4 +111,4 @@
 
 - name: Remount devpts if changed
   command:  mount -o remount /dev/pts
-  when:   replaced_devpts|changed
+  when:   replaced_devpts.changed
