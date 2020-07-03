@@ -1,0 +1,7 @@
+---
+- name: Create a volume for each VM
+  lvol:
+    vg: "{{ libvirtd_vg }}"
+    lv: "{{ item.key }}"
+    size: "{{ item.value.disksize }}"
+  with_dict:  "{{ libvirtd_machines }}"

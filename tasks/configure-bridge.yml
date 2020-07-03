@@ -1,0 +1,94 @@
+---
+- name:   "Check whether interface {{ libvirtd_bridge.name }} exists"
+  shell:  if nmcli con show {{ libvirtd_bridge.name }} >/dev/null 2>&1; then echo "1"; else echo "0"; fi
+  register:   libvirtd_bridge_check
+
+- name:   "Add bridge {{ libvirtd_bridge.name }} for primary interface"
+  command:  nmcli connection add con-name {{ libvirtd_bridge.name }} type bridge
+  when:   libvirtd_bridge_check.stdout == "0"
+  register:   libvirtd_bridge_added
+
+- name:   "Configure {{ libvirtd_bridge.name }}"
+  command: >
+    nmcli con mod {{ libvirtd_bridge.name }}
+    bridge.stp no connection.autoconnect yes
+    ipv4.addresses {{ libvirtd_bridge.address }}
+    ipv4.gateway {{ libvirtd_bridge.gateway }}
+    ipv4.method manual
+    ipv4.dns {{ libvirtd_bridge.dns|join(" ")|quote }}
+    ipv6.method ignore
+  when:   libvirtd_bridge_added.changed
+  register: libvirtd_bridge_creation
+
+  # TODO: Looking at 2.4.0.0-devel this isn't implemented in formatting terms
+  #nmcli:
+  #  conn_name:    "{{ libvirtd_bridge.name }}"
+  #  autoconnect:  yes
+  #  ip4:  "{{ libvirtd_bridge.address }}"
+  #  gw4:  "{{ libvirtd_bridge.gateway }}"
+  #  stp:  no
+  #  type: bridge
+  #  state:  present
+
+- name:   "Link {{ libvirtd_bridge.physical }} to {{ libvirtd_bridge.name }}"
+  command: >
+    nmcli con add
+    autoconnect yes
+    con-name {{ libvirtd_bridge.slave }}
+    ifname {{ libvirtd_bridge.physical }}
+    type bridge-slave
+    master {{ libvirtd_bridge.name }}
+  when:   libvirtd_bridge_creation.changed
+  register: libvirtd_bridge_linked
+
+  # TODO: Looking at 2.4.0.0-devel this isn't even a type yet...
+  #nmcli:
+  #  name: "{{ libvirtd_bridge.slave }}"
+  #  autoconnect:  yes
+  #  ifname: "{{ libvirtd_bridge.physical }}"
+  #  master: "{{ libvirtd_bridge.name }}"
+  #  type:   bridge-slave
+  #  state:  present
+- name:   "Ensure original {{ libvirtd_bridge.replace }} interface is disabled"
+  command: >
+    nmcli con mod "{{ libvirtd_bridge.replace }}"
+    connection.autoconnect no
+  when:   libvirtd_bridge_linked.changed
+  register: libvirtd_disable_interface
+
+- name: "Restart to update NetworkManager setup"
+  shell: nohup bash -c 'sleep 2 && shutdown -r now "Reboot for networking"' &
+  async: 0
+  poll: 0
+  ignore_errors: true
+  when: libvirtd_disable_interface.changed
+
+- name: wait for host
+  local_action: wait_for host={{ ansible_host | default(inventory_hostname,boolean=True) }} search_regex='OpenSSH' port=22 state='started' sleep=30 delay=120 timeout=600
+  become: no
+  when: libvirtd_disable_interface.changed
+
+- name: Check if libvirt interface is already defined
+  stat: path=/etc/libvirt/qemu/networks/{{ libvirtd_bridge.name }}.xml
+  register: libvirtd_interface_defined
+
+- name: Render {{ libvirtd_bridge.name }} configuration to libvirt as {{ libvirtd_bridge.name }}
+  template:
+    src:  etc/bridge-def.xml.j2
+    dest: /tmp/{{ libvirtd_bridge.name }}.xml
+    owner:  root
+    group:  root
+    mode:   0600
+  when:   libvirtd_interface_defined.stat.exists == False
+
+- name: Define {{ libvirtd_bridge.name }} in libvirt
+  command:  virsh net-define /tmp/{{ libvirtd_bridge.name }}.xml
+  when:   libvirtd_interface_defined.stat.exists == False
+
+- name: Autostart {{ libvirtd_bridge.name }} in libvirt
+  command:  virsh net-autostart {{ libvirtd_bridge.name }}
+  when:   libvirtd_interface_defined.stat.exists == False
+
+- name: Start {{ libvirtd_bridge.name }}
+  command:  virsh net-start {{ libvirtd_bridge.name }}
+  when:   libvirtd_interface_defined.stat.exists == False

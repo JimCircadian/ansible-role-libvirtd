@@ -40,6 +40,7 @@
 #         --graphics none \
 #         -v --extra-args "net.ifnames=0 ks=http://192.168.122.1/data.ks console=ttyS0 text" \
 #         --network bridge=virbr0
+
 - name:   "Create virtual machines"
   command: >
       /bin/virt-install
@@ -51,8 +52,8 @@
         --location "{{ libvirtd_install.dest }}"
         --disk "{{ item.value.disk }}"
         --graphics none --noautoconsole
-        -v --extra-args "net.ifnames=0 ks=http://{{ libvirtd_bridge.address|regex_replace('\/[0-9]+$','') }}/{{ item.key }}.ks console=ttyS0 text"
-        --network bridge="{{ libvirtd_bridge.dev }}"
+        -v --extra-args "net.ifnames=0 ks=http://{{ ansible_facts[item.value.bridge]['ipv4']['address'] }}/{{ item.key }}.ks console=ttyS0 text"
+        --network bridge="{{ item.value.bridge }}"
   args:
     chdir:    /var/lib/libvirt
     creates:  "/etc/libvirt/qemu/{{ item.key }}.xml"
