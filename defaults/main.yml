@@ -13,6 +13,7 @@ libvirtd_install:
 libvirtd_packages:
   - libvirt
   - libvirt-daemon
+  - libvirt-nss
   - qemu-img
   - qemu-kvm
   - virt-install

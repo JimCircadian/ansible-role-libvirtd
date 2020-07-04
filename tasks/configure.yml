@@ -44,3 +44,11 @@
 - name: Remount devpts if changed
   command:  mount -o remount /dev/pts
   when:   replaced_devpts.changed
+
+- name: Sorting out nsswitch for libvirt
+  lineinfile:
+    path:   /etc/nsswitch.conf
+    regexp: '(^(?!.*libvirt)hosts:\s+)(.+$)'
+    line: '\1libvirt \2'
+    backrefs: yes
+    state:  present
