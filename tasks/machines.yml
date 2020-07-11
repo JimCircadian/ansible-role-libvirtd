@@ -52,7 +52,7 @@
         --location "{{ libvirtd_install.dest }}"
         --disk "{{ item.value.disk }}"
         --graphics none --noautoconsole
-        -v --extra-args "net.ifnames=0 ks=http://{{ ansible_facts[item.value.bridge]['ipv4']['address'] }}/{{ item.key }}.ks console=ttyS0 text"
+        -v --extra-args "net.ifnames=0 ks=http://{{ ansible_facts[item.value.bridge]['ipv4']['address'] }}:{{ libvirtd_apache_port }}/{{ item.key }}.ks console=ttyS0 text"
         --network bridge="{{ item.value.bridge }}"
   args:
     chdir:    /var/lib/libvirt

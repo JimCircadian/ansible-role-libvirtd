@@ -24,3 +24,4 @@ libvirtd_packages:
 libvirtd_users: []
 libvirtd_repohost:  "http://mirrors.melbourne.co.uk/"
 libvirtd_rootpw:    ''
+libvirtd_apache_port:   8080
