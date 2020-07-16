@@ -41,6 +41,9 @@
 #         -v --extra-args "net.ifnames=0 ks=http://192.168.122.1/data.ks console=ttyS0 text" \
 #         --network bridge=virbr0
 
+# TODO: This will always require a second run, since item.value.bridge won't
+#  ever be set to virbr0 on the first run: perhaps query the interface dynamic
+
 - name:   "Create virtual machines"
   command: >
       /bin/virt-install

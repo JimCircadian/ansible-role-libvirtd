@@ -1,6 +1,9 @@
 ---
 dependencies:
-  - { role: geerlingguy.apache,
-      apache_listen_port: "{{ libvirtd_apache_port }}",
+  - role: geerlingguy.apache
+    vars:
+      apache_listen_port: "{{ libvirtd_apache_port }}"
       apache_listen_port_ssl: null
-   }
+      apache_vhosts:
+        - servername: localhost
+          documentroot: /var/www/html

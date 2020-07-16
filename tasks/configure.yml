@@ -7,14 +7,14 @@
 
 - include:  configure-lvm-disks.yml
 
-- name: "Opening port 80 for dmz"
+- name: "Opening port {{ libvirtd_apache_port }} for dmz"
   firewalld:
     zone:       dmz
-    service:    http
+    port:       "{{ libvirtd_apache_port }}/tcp"
     permanent:  yes
     state:      enabled
 
-- name: "Opening port 80 for dmz"
+- name: "Opening bridge on zone dmz"
   firewalld:
     zone:       dmz
     interface:  virbr0
