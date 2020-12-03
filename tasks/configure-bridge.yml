@@ -1,11 +1,13 @@
 ---
 - name:   "Check whether interface {{ libvirtd_bridge.name }} exists"
-  shell:  if nmcli con show {{ libvirtd_bridge.name }} >/dev/null 2>&1; then echo "1"; else echo "0"; fi
+  shell:  nmcli con show {{ libvirtd_bridge.name }}
+  changed_when:
+    - result.rc != 0
   register:   libvirtd_bridge_check
 
 - name:   "Add bridge {{ libvirtd_bridge.name }} for primary interface"
   command:  nmcli connection add con-name {{ libvirtd_bridge.name }} type bridge
-  when:   libvirtd_bridge_check.stdout == "0"
+  when:   libvirtd_bridge_check.rc != 0
   register:   libvirtd_bridge_added
 
 - name:   "Configure {{ libvirtd_bridge.name }}"
@@ -79,16 +81,16 @@
     owner:  root
     group:  root
     mode:   0600
-  when:   libvirtd_interface_defined.stat.exists == False
+  when:   libvirtd_interface_defined.stat.exists
 
 - name: Define {{ libvirtd_bridge.name }} in libvirt
   command:  virsh net-define /tmp/{{ libvirtd_bridge.name }}.xml
-  when:   libvirtd_interface_defined.stat.exists == False
+  when:   libvirtd_interface_defined.stat.exists
 
 - name: Autostart {{ libvirtd_bridge.name }} in libvirt
   command:  virsh net-autostart {{ libvirtd_bridge.name }}
-  when:   libvirtd_interface_defined.stat.exists == False
+  when:   libvirtd_interface_defined.stat.exists
 
 - name: Start {{ libvirtd_bridge.name }}
   command:  virsh net-start {{ libvirtd_bridge.name }}
-  when:   libvirtd_interface_defined.stat.exists == False
+  when:   libvirtd_interface_defined.stat.exists

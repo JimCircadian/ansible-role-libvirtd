@@ -1,1 +1,11 @@
 ---
+- name: libvirtd-remount-pts
+  mount:
+    path:   /dev/pts
+    state:  remount
+  #command:  mount -o remount /dev/pts
+
+- name: libvirtd-reload-firewalld
+  service:
+    name:   firewalld
+    state:  reloaded
