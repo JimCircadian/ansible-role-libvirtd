@@ -1,4 +1,22 @@
 ---
+galaxy_info:
+  role_name:    libvirtd
+  author: Jim Circadian
+  description: Deploy libvirtd as a service
+  company: Circadian Systems
+  license: MIT
+  min_ansible_version: 2
+  platforms:
+  - name: EL
+    versions:
+    - 7
+  galaxy_tags:
+  - web
+  - qemu
+  - centos
+  - rhel
+  - linux
+  - libvirt
 dependencies:
   - role: geerlingguy.apache
     vars:
